@@ -1,0 +1,14 @@
+--Select the database and change the username. If everything looks good, copy the drop_view column and run it in a new window. That will drop all of the views for that user. 
+ 
+DECLARE @username VARCHAR(255)
+DECLARE @cmd NVARCHAR(MAX)
+
+SET @username = 'XXXX\User'
+
+SET @CMD = N'
+SELECT SCHEMA_NAME(schema_id) AS schema_name
+,name AS view_name
+,''DROP VIEW [''+ SCHEMA_NAME(schema_id) + ''].[''+name+'']'' as drop_view
+FROM sys.views WHERE SCHEMA_NAME(schema_id) = ''' + @username + ''''
+
+EXEC sp_executesql @CMD
