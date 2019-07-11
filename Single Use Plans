@@ -1,0 +1,55 @@
+--You can find the single use plans using this query.
+ 
+CREATE TABLE #single_use_plan_handles (
+    plan_handle VARBINARY(64)
+    ,size_in_bytes INT
+    )
+ 
+INSERT INTO #single_use_plan_handles
+select plan_handle
+    ,size_in_bytes
+FROM sys.dm_exec_cached_plans
+WHERE usecounts = 1
+SELECT count(1) number_of_queries
+    ,query_hash
+    ,sum(convert(BIGINT, size_in_bytes)) size_in_cache_bytes
+    ,max(size_in_bytes) size_of_each_bytes
+from sys.dm_exec_query_stats a
+INNER JOIN #single_use_plan_handles b
+on a.plan_handle = b.plan_handle
+GROUP BY query_hash
+HAVING count(1) > 1
+ORDER BY 3 DESC
+ 
+DROP TABLE #single_use_plan_handles
+ 
+--SECOND PART
+
+--Replace the query hash in the query below to view the query.
+ 
+SELECT TOP 10 TEXT
+FROM sys.dm_exec_query_stats a
+CROSS APPLY sys.dm_exec_sql_text(a.sql_handle) b where a.query_hash = 0xA203BFCE7A133411
+ 
+--THIRD PART 
+ 
+--Determine if you need a template to fix this issue and create a template using the query below
+ 
+USE AdventureWorks2012
+ 
+DECLARE @stmt NVARCHAR(max);
+DECLARE @params NVARCHAR(max);
+ 
+EXEC sp_get_query_template N'select c.customerid,
+ c.accountnumber,
+ s.orderdate,
+ s.salesorderid from CustomerTest c left join sales.salesorderheader s on s.customerid = c.customerid WHERE c.AccountNumber = ''AW00000481'' order by s.orderdate'
+    ,@stmt OUTPUT
+    ,@params OUTPUT
+ 
+EXEC sp_create_plan_guide N'LookupCustomerOrderTemplate'
+    ,@stmt
+    ,N'TEMPLATE'
+    ,NULL
+    ,@params
+    ,N'OPTION(PARAMETERIZATION FORCED)';
